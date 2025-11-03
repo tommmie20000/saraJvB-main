@@ -1,0 +1,23 @@
+1. linux-arm
+
+Refers to 32-bit ARM architecture (ARMv7/ARMv6).
+
+Use this if:
+
+You are running a 32-bit OS on your Raspberry Pi (Raspberry Pi OS “32-bit” is still common even on Pi 4/5).
+
+Your Pi is older (Pi 1, 2, 3) or your OS is 32-bit.
+
+Example: pip install somepackage‑linux_arm.whl
+
+2. linux-aarch64
+
+Refers to 64-bit ARM architecture (ARMv8).
+
+Use this if:
+
+You are running a 64-bit OS (Raspberry Pi OS 64-bit or Ubuntu 64-bit for Raspberry Pi).
+
+Your Pi model is Pi 3, 4, or 5 (all support 64-bit).
+
+Example: pip install somepackage‑linux_aarch64.whl
