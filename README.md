@@ -30,19 +30,19 @@ ssh sarajvb*@(ip)
 ```
 Dan wordt je geprompt om het wachtwoord in te voeren. Als correct ingevoerd wordt je vervonden met ssh.
 
-#Het installeren van Git
+# Het installeren van Git
 Ha! Wat toevallig, je hebt deze repo al geopend, dus je bent al bijna klaar.
 Git werkt best simpel. En je hebt verschillende soorten commando’s.
 
 Natuurlijk kom je nergens, zonder dat je Git installeert. Dit doe je met de volgende commando's:
 
-##Linux (Pi)
+## Linux (Pi)
 ```
 sudo apt update            #  update alle packages
 sudo apt install -y git    #  installeer git
 ```
 
-##Windows
+## Windows
 Dit kan handig zijn voor het ontwerpen van scripts nadat je de files kopieert
 ```
 winget install --id Git.Git -e --source winget
