@@ -22,7 +22,7 @@ Om het ip te vinden van de PI voer je dit in je terminal:
 ```
 arp -a
 ```
-Het ip dat hieruit komt begint waarschijnlijk met `10.`  
+Het ip dat hieruit komt begint waarschijnlijk met `10.` of een ander nummer, dit ligt vooral aan je configuratie. 
 Dan doe je hetzelfde als voor windows in een terminal:
 ```bat
 ssh sarajvb*@(ip)
