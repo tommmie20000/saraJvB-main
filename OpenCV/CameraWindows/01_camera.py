@@ -16,14 +16,9 @@
 import numpy as np
 from openni import openni2
 import cv2
-import sys
-
-# Print Python executable and path for debugging
-print("Python executable:", sys.executable)
-print("Python path:", sys.path)
 
 # Initialize OpenNI2
-openni2.initialize("E:/saraJvB-main/saraJvB-main/OpenCV/CameraWindows/AstraSDK-v2.1.3-Win64/bin")  # Update with actual path to OpenNI2.dll
+openni2.initialize("./AstraSDK-v2.1.3-Win64/bin")  # Update with actual path to OpenNI2.dll
 
 # Open the device (ASTRA camera)
 dev = openni2.Device.open_any()
