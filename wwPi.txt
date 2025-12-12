@@ -7,8 +7,3 @@ wifi ww: SaraJvb2025
 hostname: sarajvb2.local
 username: sarajvb2
 password: saraJVB2025!
-
-Github:
-email: sarajvb.default233@passmail.com
-user: saraJVB
-ww: saraJVB2025!
