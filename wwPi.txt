@@ -1,0 +1,16 @@
+hostname: sarajvb1.local
+username: sarajvb1
+password: saraJVB2025!
+wifi ssid: SaraJvB
+wifi ww: SaraJvb2025
+
+ip pi direct ethernet: 10.180.120.41 "wrs niet" 
+
+hostname: sarajvb2.local
+username: sarajvb2
+password: saraJVB2025!
+
+Github:
+email: sarajvb.default233@passmail.com
+user: saraJVB
+ww: saraJVB2025!
