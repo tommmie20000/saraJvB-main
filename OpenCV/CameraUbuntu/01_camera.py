@@ -35,7 +35,7 @@ import numpy as np
 import cv2
 
 # Initialize OpenNI2
-openni2.initialize("/home/laptopschool/code/sarajvb/'saraJvB-main (2)'/3D_Camera/AstraSDK-v2.1.3-Ubuntu-x86_64/AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64/lib/Plugins/openni2/") # Path to OpenNI2 libs
+openni2.initialize("/home/thom/saraJvB-main/OpenCV/CameraUbuntu/AstraSDK-v2.1.3/lib/Plugins/openni2/") # Path to OpenNI2 libs
 
 # Open the device (ASTRA camera)
 dev = openni2.Device.open_any()

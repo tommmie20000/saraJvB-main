@@ -38,22 +38,81 @@ hetzelfde geld voor windows ongeveer, behalve dat het ook kan zijn dat je je poo
 
 Voor de camera, moet je iets gebruiken genaamd astraSDK. dit zorgt voor de communicatie met de camera. de setup hiervan is nogal priegelwerk, maar uiteindelijk werkt het wel. PS: hier klopt geen ene bal van. volg deze instructie niet.
 
-Hieronder de instructie voor meeste standaard linux distros:
-
+H1. Vereisten installeren (Debian / Ubuntu / Raspberry Pi OS)
 sudo apt update
+sudo apt install -y build-essential cmake python3-dev python3-venv \
+libusb-1.0-0-dev libudev-dev wget curl git unzip \
+libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \
+libncurses-dev xz-utils tk-dev libffi-dev liblzma-dev
 
-sudo apt install cmake build-essential g++
+2. Astra SDK downloaden en uitpakken
 
-open SaraJvB-main/OpenCV/CameraUbuntu/AstraSDK-v2.1.3-Ubuntu-x86_64
+Download de SDK vanaf Orbbec / Astra site:
+AstraSDK-v2.1.3-94.tar.gz
 
-unzip een van de 2, ik heb 18.04 gekozen want dit is de laatste versie.
+Pak hem uit:
 
-verplaats de folder naar CameraUbuntu, en noem hem iets anders, zoals "AstraSDK-v2.1.3"
+tar -xvf AstraSDK-v2.1.3-94.tar.gz
 
-cd ~/saraJvB-main/OpenCV/CameraUbuntu/AstraSDK-v2.1.3/samples
+3. USB-regels installeren
+cd AstraSDK-v2.1.3-94/install
+chmod +x install.sh
+sudo ./install.sh
+sudo udevadm control --reload-rules
+sudo udevadm trigger
 
-mkdir build && cd build
+4. Voeg gebruiker toe aan de video-groep
+sudo usermod -aG video $USER
 
-cmake ..
 
-make -j$(nproc)
+Log uit en weer in zodat de permissies actief zijn.
+
+5. Python 3.10 installeren (niet hoger!)
+
+Optie 1: Raspberry Pi OS / Debian standaard
+Vaak alleen via pyenv (veilig voor systeem Python):
+
+# pyenv installeren
+curl https://pyenv.run | bash
+
+# Voeg toe aan ~/.bashrc:
+export PATH="$HOME/.pyenv/bin:$PATH"
+eval "$(pyenv init --path)"
+eval "$(pyenv init -)"
+
+# herlaad bash:
+source ~/.bashrc
+
+# Python 3.10 installeren
+pyenv install 3.10.13
+pyenv shell 3.10.13
+
+
+Optie 2: Ubuntu met deadsnakes PPA (niet op Raspberry Pi OS)
+
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install python3.10 python3.10-venv python3.10-dev
+
+6. Virtuele omgeving aanmaken
+python -m venv ~/astra-venv
+source ~/astra-venv/bin/activate
+
+7. Python-pakketten installeren
+pip install --upgrade pip
+pip install numpy opencv-python openni
+
+8. OpenNI2 pad instellen in je Python script
+from openni import openni2
+
+openni2.initialize("/pad/naar/AstraSDK-v2.1.3-94/lib/Plugins/openni2/")
+
+
+Pas het pad aan naar waar jij de SDK hebt uitgepakt.
+
+9. Script draaien
+python 01_camera.py
+Als je geen Astra camera hebt aangesloten, krijg je de fout:
+DeviceOpen using default: no devices found — dat is normaal.
+
+Zodra een camera is aangesloten, zou het moeten werken. Zoniet, veel success!
