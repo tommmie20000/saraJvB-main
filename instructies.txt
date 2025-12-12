@@ -116,3 +116,27 @@ Als je geen Astra camera hebt aangesloten, krijg je de fout:
 DeviceOpen using default: no devices found — dat is normaal.
 
 Zodra een camera is aangesloten, zou het moeten werken. Zoniet, veel success!
+
+VANAF HIER!
+
+sudo apt update
+
+sudo apt install -y build-essential cmake python3-dev python3-venv \
+libusb-1.0-0-dev libudev-dev wget curl git unzip \
+libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \
+libncurses-dev xz-utils tk-dev libffi-dev liblzma-dev git unzip
+
+git clone https://github.com/tommmie20000/saraJvB-main.git
+
+cd saraJvB-main
+
+
+Voor raspberry:
+unzip OpenCV/CameraRaspberry/AstraSDK-v2.1.3-Linux-arm.zip
+
+tar -xvf OpenCV/CameraRaspberry/AstraSDK-v2.1.3-Linux-arm/AstraSDK-v2.1.3-94bca0f52e-20210611T023312Z-Linux-aarch64.tar.gz -d OpenCV/CameraRaspberry
+
+voor linux/ubuntu:
+unzip OpenCV/CameraUbuntu/AstraSDK-v2.1.3-Ubuntu-x86_64.zip -d OpenCV/CameraRaspberry
+
+tar -xvf OpenCV/CameraUbuntu/AstraSDK-v2.1.3-Ubuntu-x86_64/AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64.tar.gz
