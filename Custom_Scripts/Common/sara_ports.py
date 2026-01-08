@@ -10,10 +10,10 @@ class SaraRobotPorts:
     COM_BODY_WINDOWS: str = "COM10"
     '''Standaard COM-poort voor het lichaam van de robot op Windows.'''
 
-    COM_HEAD_LINUX: str = "/dev/ttyACM1"
+    COM_HEAD_LINUX: str = "/dev/ttyACM0"
     '''Standaard COM-poort voor het hoofd van de robot op Linux.'''
 
-    COM_BODY_LINUX: str = "/dev/ttyACM0"
+    COM_BODY_LINUX: str = "/dev/ttyACM1"
     '''Standaard COM-poort voor het lichaam van de robot op Linux.'''
 
 

@@ -1,0 +1,95 @@
+import os
+import sys
+import platform
+import numpy as np
+
+from Common.sara_common import body_parts_names
+from Common.sara_common import bodypart_to_string
+from Common.sara_common import SaraRobotPartNames
+
+
+class Encoders:
+    """
+    Klasse voor het uitlezen van encoderwaarden van de robotbasis.
+
+    Encoders geven de rotatieposities van de wielen of assen door, wat essentieel is voor het bijhouden van afstand, rotatie en voortgang.
+    """
+
+    bridge_manager: object
+    '''De communicatie-interface met de robot.'''
+
+    parent_name: str
+    '''Naam van het bovenliggende hardwareonderdeel.'''
+
+    instance_ENUM: int
+    '''Enum die aanduidt welk encoderonderdeel dit is.'''
+
+    instance_name: str
+    '''Samengestelde naam zoals "robot.body.encoders".'''
+
+    encoders: np.ndarray
+    '''Array van 5 encoderwaarden.'''
+
+    valid_data: bool
+    '''Geeft aan of de laatste data geldig was.'''
+
+    error_counter: int
+    '''Aantal opeenvolgende verwerkingsfouten.'''
+
+    rx_counter: int
+    '''Teller voor het aantal succesvolle datapunten.'''
+    
+    def __init__(self, bridge_manager, parent_name, instance_ENUM) -> None:
+        """
+        Initialiseert een Encoders-object.
+
+        Args:
+            bridge_manager (object): Interface naar de robot.
+            parent_name (str): Naam van het bovenliggende hardwarecomponent.
+            instance_ENUM (int): Enumwaarde voor dit onderdeel.
+        """
+        self.bridge_manager = bridge_manager
+        self.parent_name = parent_name
+        self.instance_ENUM = instance_ENUM
+        self.instance_name = self.parent_name + "." + bodypart_to_string(instance_ENUM)
+
+        print("Adding " + self.instance_name)
+
+        self.encoders = np.zeros(5)
+
+        self.valid_data = False
+        self.error_counter = 0
+        self.rx_counter = 0
+
+    def new_data(self, data) -> None:
+        """
+        Verwerkt nieuwe encoderdata.
+
+        Args:
+            data (bytes): Byte-array met 10 bytes (5 × 2-byte waarden).
+        """
+        try:
+            datalength = data[2]
+            assert datalength == 10, (
+                self.full_bodypart_name + " data length not correct!"
+            )
+
+            for i in range(5):
+                new_byte_array = data[3 + i * 2 : -2]
+
+                uint8_array = np.frombuffer(new_byte_array, dtype=">u1")
+                combined_int = int.from_bytes(new_byte_array[0:2], byteorder="big")
+                self.encoders[i] = float(combined_int)
+
+            self.valid_data = True
+            self.error_counter = 0
+            self.rx_counter += 1
+        except:
+            print("Encoders data processing error")
+            self.valid_data = False
+
+    def print_values(self) -> None:
+        """
+        Print de actuele encoderwaarden.
+        """
+        print("Encoders   :", [int(value) for value in self.encoders])

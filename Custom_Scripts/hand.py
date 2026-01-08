@@ -29,7 +29,7 @@ INVERT_PAN = True   # Set True if it looks away horizontally
 INVERT_TILT = False # Set True if it looks away vertically
 
 # Initialize camera (Astra)
-openni2.initialize("E:/saraJvB-main/saraJvB-main/OpenCV/CameraWindows/AstraSDK-v2.1.3-Win64/bin")
+openni2.initialize("/home/thom/saraJvB-main/OpenCV/CameraUbuntu/AstraSDK-v2.1.3/lib/Plugins/openni2/")
 dev = openni2.Device.open_any()
 color_stream = dev.create_color_stream()
 color_stream.start()

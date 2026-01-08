@@ -1,4 +1,5 @@
 import time
+import pygame
 import keyboard  # pip install keyboard
 from Common.sara_library import SaraRobot, ColorLed
 
@@ -13,6 +14,12 @@ def set_police_leds(robot, color_left, color_right):
 
 
 def main():
+    # Init audio
+    pygame.mixer.init()
+    reverse_sound = pygame.mixer.Sound("audioFiles/truckReverse.mp3")
+    reverse_channel = None
+    reverse_playing = False
+
     robot = SaraRobot(logging=False)
     time.sleep(1.0)
 
@@ -31,7 +38,7 @@ def main():
         "Controls:\n"
         "W/S: forward/back\n"
         "A/D: rotate left/right\n"
-        "Q/E: strafe left/right\n"
+        "Q/E: strafe left/wright\n"
         "1: toggle lamp\n"
         "2: toggle police lights\n"
         "ESC: quit\n"
@@ -52,6 +59,14 @@ def main():
                 forward = speed
             elif keyboard.is_pressed("s"):
                 forward = -speed
+                if not reverse_playing:
+                    reverse_channel = reverse_sound.play(loops=-1)
+                    reverse_playing = True
+            else:
+                if reverse_playing:
+                    if reverse_channel:
+                        reverse_channel.stop()
+                    reverse_playing = False
             if keyboard.is_pressed("d"):
                 rotation = -rotation_speed
             elif keyboard.is_pressed("a"):
@@ -123,6 +138,8 @@ def main():
         robot.head.left_led.setcolor(ColorLed.WHITE, ColorLed.LED_ON)
         robot.head.right_led.setcolor(ColorLed.WHITE, ColorLed.LED_ON)
         robot.base.brake(ApplyBrake=False)
+        pygame.mixer.stop()
+        pygame.mixer.quit()
         robot.stop()
 
 
