@@ -134,8 +134,7 @@ Door dit proces te volgen, kan iedereen hun eigen folder hebben, wijzigingen mak
 
 ## real VNC server op de PI activeren
 
-realvnc staat standaard geinstaleerd op rasberrypios (het OS op de PI) die moet je alleen nog activeren
-
+ealvnc staat standaard geinstaleerd op rasberrypios (het OS op de PI) die moet je alleen nog activeren via de terminal. Hierin voer je het command uit:
     sudo raspi-config
 navigeer naar Interface Options slecteer VNC en druk enter. Selecteer dan yes en click enter.  
 Dan kan je dit scherm sluiten en is realVNC geactiveerd
