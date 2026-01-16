@@ -20,7 +20,16 @@ class BallTracker:
         
         # Create color stream
         self.color_stream = self.dev.create_color_stream()
+        self.color_stream.set_video_mode(openni2.VideoMode(pixelFormat=openni2.PIXEL_FORMAT_RGB888, resolutionX=640, resolutionY=480, fps=30))
         self.color_stream.start()
+        
+        # Create depth stream
+        self.depth_stream = self.dev.create_depth_stream()
+        self.depth_stream.set_video_mode(openni2.VideoMode(pixelFormat=openni2.PIXEL_FORMAT_DEPTH_1_MM, resolutionX=640, resolutionY=480, fps=30))
+        self.depth_stream.start()
+        
+        # Sync streams
+        self.dev.set_depth_color_sync_enabled(True)
         
         # PID control parameters for smooth tracking
         self.pan_kp = 0.08   # Proportional gain for pan
@@ -39,33 +48,34 @@ class BallTracker:
         self.center_y = 240  # Half of 480 (typical height)
         
         # Deadzone to prevent jittering (larger to reduce oscillation)
-        self.deadzone_x = 15
-        self.deadzone_y = 15
+        self.deadzone_x = 60
+        self.deadzone_y = 60
         
         # Movement smoothing
         self.smoothing_factor = 0.3  # How quickly to approach target (0-1, lower = smoother)
         self.min_movement = 1  # Minimum movement threshold to prevent micro-adjustments
-
-        # Contour shape filtering (prefer round-ish objects)
-        self.min_contour_area = 200
-        self.circularity_min = 0.55  # soft threshold for circularity (0..1)
-        self.aspect_ratio_min = 0.5  # ellipse aspect ratio (minor/major) to prefer rounder objects
-
-        # Base follow parameters (use ball size instead of depth)
-        self.target_radius = 80  # desired ball radius in pixels when at target distance (increased)
-        self.radius_deadzone = 5  # pixels (narrower deadzone to allow closer movement)
-        self.radius_scale = 1.0  # sensitivity multiplier for pixel error -> speed
-        self.max_forward_speed = 30
-        self.max_rotation_speed = 20
-        self.base_move_enabled = True
+        
+        # Frame skip for depth reading (read depth every N frames for performance)
+        self.depth_frame_skip = 2  # Read depth every 2 frames
+        self.frame_counter = 0
+        self.last_depth_mm = None
+        
+        # Base movement parameters (depth-based following)
+        self.target_distance = 800  # Target distance in mm (80cm)
+        self.distance_deadzone = 150  # Don't move if within ±15cm of target
+        self.max_forward_speed = 30  # Maximum forward/backward speed
+        self.max_rotation_speed = 20  # Maximum rotation speed when centering
+        self.base_move_enabled = True  # Toggle for base movement
+        
+        # Last base movement time (for safety timeout)
         self.last_base_move_time = time.time()
         
         print("Ball Tracker initialized")
     
-    def detect_red_ball(self, frame):
+    def detect_red_ball(self, frame, depth_frame=None):
         """
-        Detects a red ball in the frame and returns its center coordinates.
-        Returns (x, y, radius) or (None, None, None) if not found.
+        Detects a red ball in the frame and returns its center coordinates and depth.
+        Returns (x, y, radius, depth_mm) or (None, None, None, None) if not found.
         """
         # Convert BGR to HSV color space
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -89,49 +99,27 @@ class BallTracker:
         
         # Find contours
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        best_score = 0
-        best_circle = (None, None, None)
-
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area < self.min_contour_area:
-                continue
-
-            peri = cv2.arcLength(cnt, True)
-            if peri <= 0:
-                continue
-
-            circularity = 4.0 * np.pi * area / (peri * peri)
-
-            # Estimate enclosing circle
-            ((x, y), radius) = cv2.minEnclosingCircle(cnt)
-            if radius <= 10:
-                continue
-
-            # Aspect ratio from fitted ellipse (if possible)
-            aspect_score = 1.0
-            if len(cnt) >= 5:
-                try:
-                    (_, _), (MA, ma), _ = cv2.fitEllipse(cnt)
-                    if MA > 0 and ma > 0:
-                        ar = min(MA, ma) / max(MA, ma)
-                        aspect_score = ar if ar > self.aspect_ratio_min else ar * 0.5
-                except Exception:
-                    aspect_score = 1.0
-
-            # Score combination: prefer larger area and higher circularity and aspect ratio
-            # Circularity near 1 is best; use exponent to emphasize roundness
-            score = area * (max(circularity, 0.0) ** 1.8) * aspect_score
-
-            if score > best_score:
-                best_score = score
-                best_circle = (int(x), int(y), int(radius))
-
-        if best_circle[0] is not None:
-            return best_circle
-
-        return None, None, None
+        
+        if len(contours) > 0:
+            # Find the largest contour (assume it's the ball)
+            largest_contour = max(contours, key=cv2.contourArea)
+            
+            # Get the minimum enclosing circle
+            ((x, y), radius) = cv2.minEnclosingCircle(largest_contour)
+            
+            # Only return if the radius is large enough (filter noise)
+            if radius > 10:
+                depth_mm = None
+                if depth_frame is not None:
+                    # Get depth at ball center
+                    try:
+                        depth_mm = depth_frame[int(y), int(x)]
+                    except:
+                        depth_mm = None
+                
+                return int(x), int(y), int(radius), depth_mm
+        
+        return None, None, None, None
     
     def calculate_head_adjustment(self, ball_x, ball_y):
         """
@@ -188,54 +176,64 @@ class BallTracker:
         self.robot.head.tilt_motor.move(position=int(tilt_pos))
         self.current_pan = pan_pos
         self.current_tilt = tilt_pos
-
-    def calculate_base_movement(self, ball_x, radius=None, depth_mm=None):
-        """Calculate base movement based on ball size (preferred) or depth (fallback).
-        Returns (forward, sideways, rotation).
+    
+    def calculate_base_movement(self, ball_x, depth_mm):
         """
-        if not self.base_move_enabled or ball_x is None:
+        Calculate base movement (forward/backward and rotation) based on ball position and depth.
+        Returns (forward_velocity, sideways_velocity, rotation_velocity).
+        """
+        if not self.base_move_enabled or ball_x is None or depth_mm is None or depth_mm == 0:
             return 0, 0, 0
-
+        
+        # Calculate forward/backward movement based on depth
+        distance_error = depth_mm - self.target_distance
+        
         forward_velocity = 0
-
-        # Prefer radius-based control
-        if radius is not None and radius > 0:
-            pixel_error = self.target_radius - radius
-            if abs(pixel_error) > self.radius_deadzone:
-                forward_velocity = int(np.clip(pixel_error * self.radius_scale, -self.max_forward_speed, self.max_forward_speed))
-        elif depth_mm is not None and depth_mm != 0:
-            # fallback (not used in this file normally)
-            distance_error = depth_mm - (self.target_radius * 10)
-            if abs(distance_error) > self.radius_deadzone * 10:
-                forward_velocity = int(np.clip(distance_error * 0.05, -self.max_forward_speed, self.max_forward_speed))
-
-        # Rotation based on horizontal error
+        if abs(distance_error) > self.distance_deadzone:
+            # Positive error = too far, move forward
+            # Negative error = too close, move backward
+            forward_velocity = int(np.clip(distance_error * 0.05, -self.max_forward_speed, self.max_forward_speed))
+        
+        # Calculate rotation based on horizontal position
         horizontal_error = ball_x - self.center_x
+        
         rotation_velocity = 0
+        # Only rotate if ball is significantly off-center (outside head deadzone)
         if abs(horizontal_error) > self.deadzone_x * 1.5:
-            # invert sign: positive horizontal_error (ball to right) -> rotate left (negative),
-            # flip if your robot's rotation sign is opposite
-            rotation_velocity = int(np.clip(-horizontal_error * 0.1, -self.max_rotation_speed, self.max_rotation_speed))
-
-        return forward_velocity, 0, rotation_velocity
-
+            # Positive error = ball on right, rotate right (clockwise)
+            rotation_velocity = int(np.clip(horizontal_error * 0.1, -self.max_rotation_speed, self.max_rotation_speed))
+        
+        return forward_velocity, 0, rotation_velocity  # sideways always 0 for now
+    
     def move_base(self, forward_velocity, sideways_velocity, rotation_velocity):
+        """
+        Move the robot base with the given velocities.
+        Implements safety timeout - must be called regularly.
+        """
+        current_time = time.time()
+        
+        # Move the base
         self.robot.base.move(
             Sideways_Velocity=sideways_velocity,
             Forward_Velocity=forward_velocity,
-            Rotation_Velocity=rotation_velocity,
+            Rotation_Velocity=rotation_velocity
         )
-        self.last_base_move_time = time.time()
+        
+        self.last_base_move_time = current_time
     
     def run(self):
         """Main tracking loop."""
         print("Starting ball tracking...")
         print("Press 'q' to quit")
         print("Press 'h' to return head to home position")
+        print("Press 'b' to toggle base movement on/off")
+        print(f"Base movement: {'ENABLED' if self.base_move_enabled else 'DISABLED'}")
         
         try:
             while True:
-                # Read frame from camera
+                self.frame_counter += 1
+                
+                # Read frame from color camera
                 color_frame = self.color_stream.read_frame()
                 color_data = color_frame.get_buffer_as_uint8()
                 
@@ -249,8 +247,27 @@ class BallTracker:
                 # Flip horizontally for mirror effect
                 frame = cv2.flip(frame, 1)
                 
-                # Detect red ball
-                ball_x, ball_y, radius = self.detect_red_ball(frame)
+                # Read depth frame only every N frames for performance
+                depth_frame = None
+                if self.frame_counter % self.depth_frame_skip == 0:
+                    try:
+                        depth_frame_raw = self.depth_stream.read_frame()
+                        depth_data = depth_frame_raw.get_buffer_as_uint16()
+                        depth_array = np.ctypeslib.as_array(depth_data)
+                        depth_frame = depth_array.reshape((depth_frame_raw.height, depth_frame_raw.width))
+                        depth_frame = cv2.flip(depth_frame, 1)
+                    except:
+                        depth_frame = None
+                
+                # Detect red ball with depth
+                ball_x, ball_y, radius, depth_mm = self.detect_red_ball(frame, depth_frame)
+                
+                # Cache depth value if we got a new one
+                if depth_mm is not None:
+                    self.last_depth_mm = depth_mm
+                elif ball_x is not None:
+                    # Use last known depth if we have ball but no new depth reading
+                    depth_mm = self.last_depth_mm
                 
                 # Draw detection on frame
                 if ball_x is not None:
@@ -263,26 +280,40 @@ class BallTracker:
                             (ball_x, ball_y), (255, 0, 0), 2)
                     
                     # Display info
-                    cv2.putText(frame, f"Ball: ({ball_x}, {ball_y})", (10, 30),
+                    info_text = f"Ball: ({ball_x}, {ball_y})"
+                    if depth_mm and depth_mm > 0:
+                        info_text += f" | Depth: {depth_mm}mm ({depth_mm/10:.1f}cm)"
+                    cv2.putText(frame, info_text, (10, 30),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    
                     cv2.putText(frame, f"Pan: {int(self.current_pan)} Tilt: {int(self.current_tilt)}", 
                                (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
-                
-                # Always calculate and move smoothly (even without ball, to settle)
-                new_pan, new_tilt = self.calculate_head_adjustment(ball_x, ball_y)
-                
-                # Move if position changed
-                if new_pan != self.current_pan or new_tilt != self.current_tilt:
-                    self.move_head(new_pan, new_tilt)
+                    
+                    # Show base movement status
+                    base_status = "Base: ENABLED" if self.base_move_enabled else "Base: DISABLED"
+                    cv2.putText(frame, base_status, (10, 90),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
                 else:
                     cv2.putText(frame, "No ball detected", (10, 30),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-
-                # Calculate base movement using radius (size)
-                forward_vel, sideways_vel, rotation_vel = self.calculate_base_movement(ball_x, radius)
+                    base_status = "Base: ENABLED" if self.base_move_enabled else "Base: DISABLED"
+                    cv2.putText(frame, base_status, (10, 60),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                
+                # Always calculate and move head smoothly
+                new_pan, new_tilt = self.calculate_head_adjustment(ball_x, ball_y)
+                
+                # Move head if position changed
+                if new_pan != self.current_pan or new_tilt != self.current_tilt:
+                    self.move_head(new_pan, new_tilt)
+                
+                # Calculate and execute base movement
+                forward_vel, sideways_vel, rotation_vel = self.calculate_base_movement(ball_x, depth_mm)
+                
                 if forward_vel != 0 or rotation_vel != 0:
                     self.move_base(forward_vel, sideways_vel, rotation_vel)
                 else:
+                    # Stop base if no movement needed
                     self.robot.base.move_stop()
                 
                 # Draw center crosshair
@@ -294,12 +325,13 @@ class BallTracker:
                 # Show frame
                 cv2.imshow("Ball Tracking", frame)
                 
-                # Handle keyboard input
+                # Handle keyboard input (waitKey=1 for minimal delay)
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord('q'):
                     break
                 elif key == ord('h'):
                     print("Returning to home position...")
+                    self.robot.base.move_stop()
                     self.robot.head.pan_motor.home()
                     self.robot.head.tilt_motor.home()
                     self.current_pan = RobotHeadPositions.PAN_MID
@@ -311,13 +343,6 @@ class BallTracker:
                     print(f"Base movement: {status}")
                     if not self.base_move_enabled:
                         self.robot.base.move_stop()
-                elif key == ord(']'):
-                    # increase desired close distance (larger target radius)
-                    self.target_radius += 5
-                    print(f"target_radius -> {self.target_radius}")
-                elif key == ord('['):
-                    self.target_radius = max(5, self.target_radius - 5)
-                    print(f"target_radius -> {self.target_radius}")
         
         finally:
             self.cleanup()
@@ -327,6 +352,7 @@ class BallTracker:
         print("Cleaning up...")
         self.robot.base.move_stop()
         self.color_stream.stop()
+        self.depth_stream.stop()
         openni2.unload()
         cv2.destroyAllWindows()
 
