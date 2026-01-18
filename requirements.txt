@@ -8,3 +8,6 @@ flask-socketio
 eventlet
 pyserial
 openni
+faster-whisper
+requests
+SpeechRecognition

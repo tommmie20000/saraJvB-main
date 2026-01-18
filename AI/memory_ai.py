@@ -12,9 +12,10 @@ import cv2
 import base64
 
 # --- CONFIGURATIE ---
-OLLAMA_URL = "https://ollama.3d-by-thom.nl/api/chat"  # Pas aan naar jouw Ollama server URL
-TEXT_MODEL = "llama3.1:8b"         # Krachtig Nederlands model
-VISION_MODEL = "llama3.2-vision:11b" # Vision model
+OLLAMA_URL = "https://ollama.3d-by-thom.nl/api/chat" 
+TEXT_MODEL = "llama3.1:8b"         
+VISION_MODEL = "llama3.2-vision:11b" 
+MEMORY_FILE = "AI/sara_memories.txt"
 
 WAKE_WORDS = ["he sara", "hey sara", "hallo sara", "sara", "sarah"] 
 EXIT_TRIGGER = "!?doei"
@@ -24,23 +25,47 @@ USER_EXIT_WORDS = ["doei", "dag", "tot ziens", "hou op", "stop"]
 PIPER_PATH = "./piper/piper" 
 VOICE_MODEL = "nl_NL-pim-medium.onnx" 
 
-# --- PERSOONLIJKHEID ---
-SYSTEM_PROMPT = f"""
-Je bent Sara, de robot van het Jan van Brabant College. 
-Houd je antwoorden kort (max 15 woorden). 
-Als men vraagt 'wat zie je?' of 'kijk eens', antwoord dan ALTIJD met de code: ?!snapshot, gebruik dan niet direct de context die eerder aan je gegeven is.
-"""
+# --- GEHEUGEN FUNCTIES ---
+def read_memories():
+    """Leest de laatste 5 herinneringen uit het bestand."""
+    if not os.path.exists(MEMORY_FILE):
+        return "Je hebt nog geen eerdere bezoekers gesproken vandaag."
+    with open(MEMORY_FILE, "r") as f:
+        lines = f.readlines()
+        # Pak de laatste 5 herinneringen om de prompt niet te zwaar te maken
+        return "".join(lines[-5:])
 
-def get_snapshot():
-    """Maakt een foto en geeft base64 terug."""
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
+def save_memory(summary):
+    """Slaat een nieuwe herinnering op."""
+    with open(MEMORY_FILE, "a") as f:
+        f.write(f"- {summary}\n")
+
+def summarize_conversation(history):
+    """Vraagt de AI om een ultrakorte samenvatting van het gesprek."""
+    # We filteren de systeem-prompt er even uit voor de samenvatting
+    clean_history = [m for m in history if m['role'] != 'system']
+    
+    prompt = "Vat dit gesprek samen in maximaal 10 woorden voor je geheugen. Gebruik de derde persoon. Voorbeeld: 'Een bezoeker vroeg naar de v-w-o lokalen.'"
+    
+    payload = {
+        "model": TEXT_MODEL,
+        "messages": clean_history + [{"role": "user", "content": prompt}],
+        "stream": False,
+        "options": {"num_predict": 30}
+    }
+    try:
+        response = requests.post(OLLAMA_URL, json=payload, timeout=30)
+        return response.json()['message']['content'].strip()
+    except:
         return None
-    # Korte pauze voor camera initialisatie
+
+# --- CORE FUNCTIES ---
+def get_snapshot():
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened(): return None
     time.sleep(0.5)
     success, frame = cap.read()
     if success:
-        # Resize naar 640x480 voor snellere verwerking door de GPU
         frame = cv2.resize(frame, (640, 480))
         _, buffer = cv2.imencode('.jpg', frame)
         img_str = base64.b64encode(buffer).decode('utf-8')
@@ -52,8 +77,6 @@ def get_snapshot():
 def chat_with_ollama(user_input, history, image_b64=None):
     selected_model = VISION_MODEL if image_b64 else TEXT_MODEL
     
-    # Als we een foto sturen, gebruiken we een SCHONE prompt zonder geschiedenis
-    # om te voorkomen dat ze in een "?!snapshot" lus terechtkomt.
     if image_b64:
         messages = [{"role": "user", "content": "Beschrijf heel kort in het Nederlands wat je ziet op deze foto.", "images": [image_b64]}]
     else:
@@ -63,29 +86,23 @@ def chat_with_ollama(user_input, history, image_b64=None):
         "model": selected_model,
         "messages": messages,
         "stream": False,
-        "options": {"num_predict": 60, "temperature": 0.2}
+        "options": {"num_predict": 80, "temperature": 0.4}
     }
     
     try:
         response = requests.post(OLLAMA_URL, json=payload, timeout=120)
-        response.raise_for_status()
         reply = response.json()['message']['content']
-        
-        # Alleen tekstvragen opslaan in geschiedenis om VRAM te sparen
         if not image_b64:
             history.append({"role": "user", "content": user_input})
             history.append({"role": "assistant", "content": reply})
-            
         return reply, history
     except Exception as e:
         print(f"\n\033[91mFout: {e}\033[0m")
-        return "Mijn systeem moet even herstarten.", history
+        return "Systeemfout.", history
 
 def speak(text):
-    # Verwijder triggers uit spraak
     clean = text.replace("?!snapshot", "").replace("?!ball", "").replace(EXIT_TRIGGER, "").strip()
     clean = "".join(c for c in clean if unicodedata.category(c)[0] != 'S')
-    
     if clean:
         sys.stdout.write(f"\r\033[K\033[92mSara: {clean}\033[0m\n")
         temp_wav = "output.wav"
@@ -96,16 +113,28 @@ def speak(text):
         except: pass
 
 def main():
-    print("\n\033[95m--- SARA MULTIMODAL (8B/11B GPU) ---\033[0m")
+    print("\n\033[95m--- SARA MULTIMODAL MET GEHEUGEN ---\033[0m")
     mode = input("Kies modus: [T]yping of [S]peech? ").lower()
     
-    history = [{"role": "system", "content": SYSTEM_PROMPT}]
-    stt_model = None
-    if mode == 's':
-        stt_model = WhisperModel("small", device="cpu", compute_type="int8")
+    # LADEN VAN GEHEUGEN
+    memories = read_memories()
     
+    system_prompt = f"""
+    Je bent Sara, de robot van het Jan van Brabant College. 
+    Korte antwoorden (max 15 woorden). 
+    Als men vraagt 'wat zie je?' of 'kijk eens', antwoord ALTIJD met: ?!snapshot.
+    Probeer zo menselijk mogelijk te klinken, dus begin bijvoorbeeld zinnen op een natuurlijke wijze.
+    Neem geen dingen aan die niet waar zijn.
+    Als iemand afscheid neemt, zeg dan altijd: "!?doei" om het gesprek netjes af te sluiten.
+    GEHEUGEN VAN VANDAAG:
+    {memories}
+    
+    Gebruik dit geheugen af en toe om te laten zien dat je mensen onthoudt.
+    """
+    
+    history = [{"role": "system", "content": system_prompt}]
+    stt_model = WhisperModel("small", device="cpu", compute_type="int8") if mode == 's' else None
     recognizer = sr.Recognizer()
-    print(f"\n\033[96mSara is actief op {OLLAMA_URL}\033[0m")
 
     while True:
         user_msg = ""
@@ -124,39 +153,36 @@ def main():
                 except: continue
 
         if user_msg:
-            # 1. Check voor afsluiten
+            # 1. Check voor afsluiten en herinnering opslaan
             if any(w in user_msg.lower() for w in USER_EXIT_WORDS):
-                speak("Fijne dag verder!")
+                speak("Fijne dag! Ik zal je onthouden.")
+                print("\033[90mGeheugen aan het opslaan...\033[0m")
+                summary = summarize_conversation(history)
+                if summary:
+                    save_memory(summary)
                 break
 
-            # 2. Roep tekstmodel aan
+            # 2. Roep model aan
             response, history = chat_with_ollama(user_msg, history)
 
-            # 3. Check op snapshot trigger
-# 3. Check op snapshot trigger
+            # 3. Snapshot logica
             if "?!snapshot" in response:
-                # We printen dit duidelijk zodat je weet dat de camera-actie start
-                print("\n\033[1;91m[CAMERA] Ik maak nu een foto...\033[0m")
+                print("\n\033[1;91m[CAMERA] Foto maken...\033[0m")
                 snap = get_snapshot()
-                
                 if snap:
-                    # Belangrijk: we sturen een specifieke vraag mee naar het Vision model
-                    # en we slaan het resultaat op in 'vision_reply'
-                    vision_reply, history = chat_with_ollama("Beschrijf heel kort wat je ziet in de camera.", history, image_b64=snap)
-                    
-                    # DIT STUKJE MOET ERIN:
-                    # Zorg dat Sara het antwoord ook echt geeft in de terminal en via Piper
-                    print(f"\r\033[K\033[92mSara (Vision): {vision_reply}\033[0m")
-                    speak(vision_reply) 
+                    # Vision aanroep (zonder history om loops te voorkomen)
+                    vision_reply, _ = chat_with_ollama("Beschrijf kort wat je ziet.", [], image_b64=snap)
+                    clean_vision = vision_reply.replace("?!snapshot", "").strip()
+                    print(f"\r\033[K\033[92mSara ziet: {clean_vision}\033[0m")
+                    speak(clean_vision)
+                    history.append({"role": "assistant", "content": f"Ik zie op de camera: {clean_vision}"})
                 else:
-                    speak("Ik kan de camera niet openen. Controleer of een ander programma de camera gebruikt.")
+                    speak("Ik zie momenteel niets.")
             else:
-                # Als er geen snapshot nodig was, heeft het tekstmodel al geantwoord
                 speak(response)
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\nProgramma gestopt.")
         sys.exit(0)
