@@ -1,151 +1,272 @@
-This is documentation of the Sara Robot, also known as the QIHAN S1-W1.
+# Sara Robot Documentation
 
-Our robot has been modified with a custom script to run python scripts, which are under [Tag V3.0](https://github.com/tommmie20000/saraJvB-main/tree/main/Tag%20V3.0).
+Documentation for the Sara Robot (QIHAN S1-W1) with custom Python scripts.
 
-There is also a camera on the robot, which can be viewed using the python scripts under [OpenCV](https://github.com/tommmie20000/saraJvB-main/tree/main/OpenCV)
-The camera does need AstraSDK drivers, which can be found [here](https://www.orbbec.com/developers/astra-sdk/)
-This documentation is mostly dutch, so good luck!
+## Table of Contents
+- [Overview](#overview)
+- [SSH Connection](#ssh-connection)
+- [Git Installation](#git-installation)
+- [Forking the Repository](#forking-the-repository)
+- [Installation & Setup (go here for install)](#installation--setup)
+- [Astra Camera Setup](#astra-camera-setup)
+- [Remote Desktop Access](#remote-desktop-access)
+- [Troubleshooting](#troubleshooting)
 
-# Ssh verbinden met PI 5
-## Windows
-Wij hebben voor ssh de pi 5 verbonden met de hotspot van de laptop. 
-Je kan bij instelling van de hotspot verbonden apparaten zien en hun ip adressen erbij.  
-Om te verbinden met ssh moet je in je terminal of in de terminal:
+## Overview
+
+The Sara Robot has been modified with custom Python scripts located in the `Tag V3.0` directory. The robot includes an Astra camera, with viewing scripts available in the `OpenCV` directory.
+
+**Repository:** https://github.com/tommmie20000/saraJvB-main
+
+## SSH Connection
+
+### Windows
+
+1. Connect the Raspberry Pi 5 to your laptop's hotspot
+2. Find the Pi's IP address in your hotspot settings under "Connected devices"
+3. Open terminal and connect:
 ```bat
-ssh sarajvb*@(ip)
+ssh sarajvb@<ip-address>
 ```
-en dan word je geprompt om het wachtwoord in te voeren.  
-Wanneer verbind de ssh.
+4. Enter the password when prompted
 
-## linux (ubuntu)
-Verbind de PI 5 met de hotspot van de laptop met linux.  
-Om het ip te vinden van de PI voer je dit in je terminal:
-```
+### Linux (Ubuntu)
+
+1. Connect the Raspberry Pi 5 to your laptop's hotspot
+2. Find the Pi's IP address:
+```bash
 arp -a
 ```
-Het ip dat hieruit komt begint waarschijnlijk met `10.` of een ander nummer, dit ligt vooral aan je configuratie. 
-Dan doe je hetzelfde als voor windows in een terminal:
+Look for an IP starting with `10.` (or similar, depending on your configuration)
+
+3. Connect via SSH:
+```bash
+ssh sarajvb@<ip-address>
+```
+4. Enter the password when prompted
+
+## Git Installation
+
+### Linux (Raspberry Pi)
+```bash
+sudo apt update
+sudo apt install -y git
+```
+
+### Windows
+Using winget:
 ```bat
-ssh sarajvb*@(ip)
-```
-Dan wordt je geprompt om het wachtwoord in te voeren. Als correct ingevoerd wordt je vervonden met ssh.
-
-# Het installeren van Git
-Ha! Wat toevallig, je hebt deze repo al geopend, dus je bent al bijna klaar.
-Git werkt best simpel. En je hebt verschillende soorten commando’s.
-
-Natuurlijk kom je nergens, zonder dat je Git installeert. Dit doe je met de volgende commando's:
-
-## Linux (Pi)
-```
-sudo apt update            #  update alle packages
-sudo apt install -y git    #  installeer git
-```
-
-## Windows
-Dit kan handig zijn voor het ontwerpen van scripts nadat je de files kopieert
-```
 winget install --id Git.Git -e --source winget
 ```
-of
-[Direct van de website
-](https://git-scm.com/install/windows)
 
-# Forken van de repo
+Or download directly from: https://git-scm.com/install/windows
 
-Om je eigen versie van de Sara Robot code te maken, is het handig om de repo te **forken** naar je eigen GitHub account. Dit geeft je de vrijheid om wijzigingen te maken zonder het centrale project te beïnvloeden.
+## Forking the Repository !! this is optional, you can also just clone the repo and work in there, forking just allows you to upload it to github again.
 
-1. Open de repo in je browser: [https://github.com/tommmie20000/saraJvB-main](https://github.com/tommmie20000/saraJvB-main)
-2. Log in op je GitHub account.
-3. Klik rechtsboven op de **Fork** knop.
-4. Selecteer je eigen account als bestemming.
-5. Je hebt nu een kopie van de repo in je eigen GitHub account.
+To create your own version of the Sara Robot code:
 
-## Je fork lokaal klonen
+1. Navigate to: https://github.com/tommmie20000/saraJvB-main
+2. Log in to your GitHub account
+3. Click the **Fork** button (top right)
+4. Select your account as the destination
 
-Na het forken, kan je je eigen fork lokaal werken met:
+### Clone Your Fork Locally
 
 ```bash
-git clone https://github.com/<jouw-gebruikersnaam>/saraJvB-main.git /pad/naar/jouw/folder
+git clone https://github.com/<your-username>/saraJvB-main.git
+cd saraJvB-main
 ```
 
-Vervang `<jouw-gebruikersnaam>` door je eigen GitHub handle.
+### Making Changes
 
-## Wijzigingen maken
-
-1. Ga naar de folder van je clone:
-
-```bash
-cd /pad/naar/jouw/folder
-```
-
-2. Maak je wijzigingen in de code.
-3. Voeg de wijzigingen toe:
-
+1. Navigate to your cloned folder
+2. Make your code changes
+3. Stage changes:
 ```bash
 git add .
 ```
-
-4. Commit je wijzigingen:
-
+4. Commit changes:
 ```bash
-git commit -m "Beschrijf je wijzigingen"
+git commit -m "Description of your changes"
 ```
-
-5. Push naar je eigen fork:
-
+5. Push to your fork:
 ```bash
 git push origin main
 ```
 
-Persoonlijk ben ik meer fan van alles coderen op vscode die gelinked is met vscode, en dan alles pushen via de simpele UI en dan pullen op die pi. dit is vrij simpel en ook handig om te doen. Maar dit ligt compleet aan je eigen voorkeur, dus ik zou zeggen, google away!
+**Tip:** Consider using VS Code with GitHub integration for easier code management and syncing.
 
-# Up-to-date blijven met het centrale project
+### Staying Up-to-Date
 
-Om te zorgen dat je fork up-to-date blijft met de originele repo:
+To keep your fork synchronized with the original repository:
 
-1. Voeg de originele repo toe als upstream:
-
+1. Add the original repo as upstream:
 ```bash
 git remote add upstream https://github.com/tommmie20000/saraJvB-main.git
 ```
 
-2. Haal de laatste wijzigingen op van de centrale repo:
-
+2. Fetch latest changes:
 ```bash
 git fetch upstream
 ```
 
-3. Merge deze wijzigingen in je lokale branch:
-
+3. Merge changes into your local branch:
 ```bash
 git merge upstream/main
 ```
 
-4. Push de bijgewerkte code naar je eigen fork:
-
+4. Push updates to your fork:
 ```bash
 git push origin main
 ```
 
-Door dit proces te volgen, kan iedereen hun eigen folder hebben, wijzigingen maken, en toch eenvoudig up-to-date blijven met het centrale project.
+## Installation & Setup
 
-# Remote desktop met de PI
+### Complete Installation (Recommended)
 
-## real VNC server op de PI activeren
+```bash
+sudo apt update
+sudo apt install -y python3 python3-tk git
 
-ealvnc staat standaard geinstaleerd op rasberrypios (het OS op de PI) die moet je alleen nog activeren via de terminal. Hierin voer je het command uit:
-    sudo raspi-config
-navigeer naar Interface Options slecteer VNC en druk enter. Selecteer dan yes en click enter.  
-Dan kan je dit scherm sluiten en is realVNC geactiveerd
+git clone https://github.com/tommmie20000/saraJvB-main.git
+cd saraJvB-main
 
-## realVNC viewer (client side)
-ga naar de realVNC website [www.realvnc.com/en/connect/download/viewer/](www.realvnc.com/en/connect/download/viewer/) daan dowload je de RealVNC viewer .exe  
-DIe kan je openen en dan instaleerd die de viewer.
+# Install pyenv
+curl https://pyenv.run | bash
 
-## Verbinden met de PI 
-Verbind beide de PI en client met de wifi van de tp-link router
+# Add to ~/.bashrc:
+export PATH="$HOME/.pyenv/bin:$PATH"
+eval "$(pyenv init --path)"
+eval "$(pyenv init -)"
 
-Open RealVNC viewer op client (laptop) in de searchbar bovenin typ je `raspberrypi.local` druk enter.  
-Dan krijg je een login scherm. Voer de login van de PI zelf in (die je ook gebruikt op de pi zelf).  
-Wanneer je al eerder hebt verbonden kan je dubbel clicken op de preview die er staat waaronder `raspberrypi.local` staat
+# Reload bash
+source ~/.bashrc
+
+# Install Python 3.10 (required for Astra SDK)
+pyenv install 3.10.13
+pyenv shell 3.10.13
+
+# Create and activate virtual environment
+python3 -m venv ~/astra-venv
+source ~/astra-venv/bin/activate
+
+# Install Python packages
+pip install -r requirements.txt
+```
+
+### If Virtual Environment Creation Fails
+
+If you encounter an error about missing packages:
+
+```bash
+sudo apt install python3.13-venv
+```
+
+**Note:** Check the error message for the exact Python version needed, as it may differ.
+
+Then remove the failed venv and try again:
+```bash
+rm -rf venv
+python3 -m venv venv
+```
+
+## Astra Camera Setup
+
+The Astra camera requires the AstraSDK drivers for communication.
+
+### Prerequisites Installation
+
+```bash
+sudo apt update
+sudo apt install -y build-essential cmake python3-dev python3-venv \
+libusb-1.0-0-dev libudev-dev wget curl git unzip \
+libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \
+libncurses-dev xz-utils tk-dev libffi-dev liblzma-dev
+```
+
+### Extract AstraSDK
+
+**For Raspberry Pi:**
+```bash
+unzip OpenCV/CameraRaspberry/AstraSDK-v2.1.3-Linux-arm.zip
+
+tar -xvf OpenCV/CameraRaspberry/AstraSDK-v2.1.3-Linux-arm/AstraSDK-v2.1.3-94bca0f52e-20210611T023312Z-Linux-aarch64.tar.gz -d OpenCV/CameraRaspberry
+```
+
+**For Linux/Ubuntu (x86_64):**
+```bash
+unzip OpenCV/CameraUbuntu/AstraSDK-v2.1.3-Ubuntu-x86_64.zip -d OpenCV/CameraRaspberry
+
+tar -xvf OpenCV/CameraUbuntu/AstraSDK-v2.1.3-Ubuntu-x86_64/AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64.tar.gz
+```
+
+### Install USB Rules
+
+```bash
+cd AstraSDK-v2.1.3-94/install
+chmod +x install.sh
+sudo ./install.sh
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+### Add User to Video Group
+
+```bash
+sudo useruser -aG video $USER
+```
+
+**Important:** Log out and log back in for permissions to take effect.
+
+### Python Configuration
+
+In your Python script, initialize OpenNI2 with the correct path:
+
+```python
+from openni import openni2
+
+openni2.initialize("/path/to/AstraSDK-v2.1.3-94/lib/Plugins/openni2/")
+```
+
+Adjust the path to match your AstraSDK extraction location.
+
+### Running Camera Scripts
+
+```bash
+python 01_camera.py
+```
+
+**Note:** If no Astra camera is connected, you'll see: `DeviceOpen using default: no devices found` — this is expected.
+
+## Troubleshooting
+
+### COM Port Issues (Linux)
+
+If the robot isn't responding, try swapping COM ports in `Tag_V3.0/Common/sara_ports.py`:
+
+```python
+COM_HEAD_LINUX: str = "/dev/ttyACM1"
+COM_BODY_LINUX: str = "/dev/ttyACM0"
+```
+
+Try swapping these values (ACM0 ↔ ACM1).
+
+### COM Port Issues (Windows)
+
+The default ports are COM10/COM11. If your ports differ, update them in `sara_ports.py` rather than changing your system configuration.
+
+### Camera Not Working
+
+1. Verify the Astra camera is connected
+2. Check USB permissions (ensure user is in video group)
+3. Verify OpenNI2 initialization path is correct
+4. Check that Python 3.10 is being used (required for SDK compatibility)
+
+## Additional Resources
+
+- **Astra SDK Downloads:** https://www.orbbec.com/developers/astra-sdk/
+- **Repository Issues:** Report problems at https://github.com/tommmie20000/saraJvB-main/issues
+
+---
+
+*This documentation is primarily in English with some Dutch references maintained for compatibility with existing scripts.*
