@@ -203,6 +203,7 @@ tar -xvf OpenCV/CameraUbuntu/AstraSDK-v2.1.3-Ubuntu-x86_64/AstraSDK-v2.1.3-94bca
 ### Install USB Rules
 
 ```bash
+cp -r AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64 AstraSDK-v2.1.3-94
 cd AstraSDK-v2.1.3-94/install
 chmod +x install.sh
 sudo ./install.sh
@@ -213,7 +214,7 @@ sudo udevadm trigger
 ### Add User to Video Group
 
 ```bash
-sudo useruser -aG video $USER
+sudo usermod -aG video $USER
 ```
 
 **Important:** Log out and log back in for permissions to take effect.
