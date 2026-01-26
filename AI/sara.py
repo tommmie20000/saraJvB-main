@@ -10,8 +10,8 @@ import time
 import re
 
 # --- CONFIGURATIE ---
-OLLAMA_URL = "http://192.168.1.30:11434/api/chat"
-MODEL_NAME = "qwen2.5:1.5b" 
+OLLAMA_URL = "http://localhost:11434/api/chat"
+MODEL_NAME = "gemma3:270m" 
 
 WAKE_WORDS = ["he sara", "hey sara", "hallo sara", "sara", "sarah"] 
 EXIT_TRIGGER = "!?doei"

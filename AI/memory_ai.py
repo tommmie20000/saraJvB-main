@@ -12,8 +12,8 @@ import cv2
 import base64
 
 # --- CONFIGURATIE ---
-OLLAMA_URL = "https://ollama.3d-by-thom.nl/api/chat" 
-TEXT_MODEL = "llama3.1:8b"         
+OLLAMA_URL = "https://localhost:11434/api/chat" 
+TEXT_MODEL = "gemma3:270m"         
 VISION_MODEL = "llama3.2-vision:11b" 
 MEMORY_FILE = "AI/sara_memories.txt"
 
@@ -22,7 +22,7 @@ EXIT_TRIGGER = "!?doei"
 USER_EXIT_WORDS = ["doei", "dag", "tot ziens", "hou op", "stop"]
 
 # --- PIPER ---
-PIPER_PATH = "./piper/piper" 
+PIPER_PATH = "piper/piper" 
 VOICE_MODEL = "nl_NL-pim-medium.onnx" 
 
 # --- GEHEUGEN FUNCTIES ---
