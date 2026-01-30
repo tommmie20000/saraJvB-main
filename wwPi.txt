@@ -4,6 +4,10 @@ password: saraJVB2025!
 wifi ssid: SaraJvB
 wifi ww: SaraJvb2025
 
+Hotspot voor forwarding
+ssid: hotspotsara
+ww: sarajvb2025
+
 hostname: sarajvb2.local
 username: sarajvb2
 password: saraJVB2025!
