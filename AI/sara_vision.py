@@ -12,7 +12,7 @@ import cv2
 import base64
 
 # --- CONFIGURATIE ---
-OLLAMA_URL = "https://ollama.3d-by-thom.nl/api/chat"  # Pas aan naar jouw Ollama server URL
+OLLAMA_URL = "http://192.168.1.40:11434/api/chat"
 TEXT_MODEL = "llama3.1:8b"         # Krachtig Nederlands model
 VISION_MODEL = "llama3.2-vision:11b" # Vision model
 

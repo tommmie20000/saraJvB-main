@@ -10,8 +10,8 @@ import time
 import re
 
 # --- CONFIGURATIE ---
-OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = "gemma3:270m" 
+OLLAMA_URL = "http://192.168.1.40:11434/api/chat"
+MODEL_NAME = "llama3.2:3b" 
 
 WAKE_WORDS = ["he sara", "hey sara", "hallo sara", "sara", "sarah"] 
 EXIT_TRIGGER = "!?doei"
@@ -108,7 +108,7 @@ def chat_with_ollama(user_input, history):
         history.append({"role": "assistant", "content": reply})
         return reply, history
     except:
-        return "Even een storing.", history
+        return "", history
 
 def listen_and_transcribe(recognizer, source, is_wake_phase=False):
     status = "Wachten op 'Hey Sara'..." if is_wake_phase else "Ik luister..."
