@@ -4,46 +4,19 @@ Documentation for the Sara Robot (QIHAN S1-W1) with custom Python scripts.
 
 ## Table of Contents
 - [Overview](#overview)
-- [SSH Connection](#ssh-connection)
 - [Git Installation](#git-installation)
-- [Forking the Repository](#forking-the-repository)
 - [Installation & Setup (go here for install)](#installation--setup)
 - [Astra Camera Setup](#astra-camera-setup)
 - [Remote Desktop Access](#remote-desktop-access)
 - [Troubleshooting](#troubleshooting)
+- [Forking the Repository](#forking-the-repository)
+- [SSH Connection](#ssh-connection)
 
 ## Overview
 
 The Sara Robot has been modified with custom Python scripts located in the `Tag V3.0` directory. The robot includes an Astra camera, with viewing scripts available in the `OpenCV` directory.
 
 **Repository:** https://github.com/tommmie20000/saraJvB-main
-
-## SSH Connection
-
-### Windows
-
-1. Connect the Raspberry Pi 5 to your laptop's hotspot
-2. Find the Pi's IP address in your hotspot settings under "Connected devices"
-3. Open terminal and connect:
-```bat
-ssh sarajvb@<ip-address>
-```
-4. Enter the password when prompted
-
-### Linux (Ubuntu)
-
-1. Connect the Raspberry Pi 5 to your laptop's hotspot
-2. Find the Pi's IP address:
-```bash
-arp -a
-```
-Look for an IP starting with `10.` (or similar, depending on your configuration)
-
-3. Connect via SSH:
-```bash
-ssh sarajvb@<ip-address>
-```
-4. Enter the password when prompted
 
 ## Git Installation
 
@@ -60,65 +33,6 @@ winget install --id Git.Git -e --source winget
 ```
 
 Or download directly from: https://git-scm.com/install/windows
-
-## Forking the Repository !! this is optional, you can also just clone the repo and work in there, forking just allows you to upload it to github again.
-
-To create your own version of the Sara Robot code:
-
-1. Navigate to: https://github.com/tommmie20000/saraJvB-main
-2. Log in to your GitHub account
-3. Click the **Fork** button (top right)
-4. Select your account as the destination
-
-### Clone Your Fork Locally
-
-```bash
-git clone https://github.com/<your-username>/saraJvB-main.git
-cd saraJvB-main
-```
-
-### Making Changes
-
-1. Navigate to your cloned folder
-2. Make your code changes
-3. Stage changes:
-```bash
-git add .
-```
-4. Commit changes:
-```bash
-git commit -m "Description of your changes"
-```
-5. Push to your fork:
-```bash
-git push origin main
-```
-
-**Tip:** Consider using VS Code with GitHub integration for easier code management and syncing.
-
-### Staying Up-to-Date
-
-To keep your fork synchronized with the original repository:
-
-1. Add the original repo as upstream:
-```bash
-git remote add upstream https://github.com/tommmie20000/saraJvB-main.git
-```
-
-2. Fetch latest changes:
-```bash
-git fetch upstream
-```
-
-3. Merge changes into your local branch:
-```bash
-git merge upstream/main
-```
-
-4. Push updates to your fork:
-```bash
-git push origin main
-```
 
 ## Installation & Setup
 
@@ -267,6 +181,93 @@ The default ports are COM10/COM11. If your ports differ, update them in `sara_po
 
 - **Astra SDK Downloads:** https://www.orbbec.com/developers/astra-sdk/
 - **Repository Issues:** Report problems at https://github.com/tommmie20000/saraJvB-main/issues
+
+
+## Forking the Repository !! this is optional, you can also just clone the repo and work in there, forking just allows you to upload it to github again.
+
+To create your own version of the Sara Robot code:
+
+1. Navigate to: https://github.com/tommmie20000/saraJvB-main
+2. Log in to your GitHub account
+3. Click the **Fork** button (top right)
+4. Select your account as the destination
+
+### Clone Your Fork Locally
+
+```bash
+git clone https://github.com/<your-username>/saraJvB-main.git
+cd saraJvB-main
+```
+
+### Making Changes
+
+1. Navigate to your cloned folder
+2. Make your code changes
+3. Stage changes:
+```bash
+git add .
+```
+4. Commit changes:
+```bash
+git commit -m "Description of your changes"
+```
+5. Push to your fork:
+```bash
+git push origin main
+```
+
+**Tip:** Consider using VS Code with GitHub integration for easier code management and syncing.
+
+### Staying Up-to-Date
+
+To keep your fork synchronized with the original repository:
+
+1. Add the original repo as upstream:
+```bash
+git remote add upstream https://github.com/tommmie20000/saraJvB-main.git
+```
+
+2. Fetch latest changes:
+```bash
+git fetch upstream
+```
+
+3. Merge changes into your local branch:
+```bash
+git merge upstream/main
+```
+
+4. Push updates to your fork:
+```bash
+git push origin main
+```
+
+## SSH Connection
+
+### Windows
+
+1. Connect the Raspberry Pi 5 to your laptop's hotspot
+2. Find the Pi's IP address in your hotspot settings under "Connected devices"
+3. Open terminal and connect:
+```bat
+ssh sarajvb@<ip-address>
+```
+4. Enter the password when prompted
+
+### Linux (Ubuntu)
+
+1. Connect the Raspberry Pi 5 to your laptop's hotspot
+2. Find the Pi's IP address:
+```bash
+arp -a
+```
+Look for an IP starting with `10.` (or similar, depending on your configuration)
+
+3. Connect via SSH:
+```bash
+ssh sarajvb@<ip-address>
+```
+4. Enter the password when prompted
 
 ---
 
