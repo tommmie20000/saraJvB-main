@@ -8,6 +8,10 @@ import unicodedata
 import threading
 import time
 import re
+import json
+import traceback
+from vosk import Model, KaldiRecognizer
+import sounddevice as sd
 
 # --- CONFIGURATIE ---
 OLLAMA_URL = "http://192.168.1.40:11434/api/chat"
@@ -44,8 +48,14 @@ antwoord dan kort en eindig je zin ALTIJD met de code: ?!ball. gebruik deze code
 """
 
 # Initialiseer STT
-stt_model = WhisperModel("small", device="cpu", compute_type="int8")
+# faster but less accurate
+stt_model = WhisperModel("tiny", device="cpu", compute_type="int8")
 running = True
+
+# VOSK wake-word detector settings
+VOSK_MODEL_PATH = "models/vosk-model-small-nl-0.22"
+wake_event = threading.Event()
+last_wake_text = ""
 
 def check_for_exit():
     global running
@@ -70,6 +80,51 @@ def trigger_ball_script():
         print("\n\033[1;96m[SARA MODUS: SPRAAKHERKENNING HERVAT]\033[0m\n")
     except Exception as e:
         print(f"\r\033[K\033[31mFout bij starten bal-script: {e}\033[0m")
+
+
+def vosk_wake_listener():
+    """Background Vosk listener for low-latency wake-word detection."""
+    global running, wake_event, last_wake_text
+    try:
+        model = Model(VOSK_MODEL_PATH)
+        # use the wake words as a small grammar to limit false positives
+        rec = KaldiRecognizer(model, 16000, json.dumps(WAKE_WORDS))
+        with sd.RawInputStream(samplerate=16000, blocksize=8000, dtype='int16', channels=1) as stream:
+            while running:
+                data = stream.read(4000)[0]
+                # Ensure we pass bytes to KaldiRecognizer (fixes CFFI buffer error)
+                try:
+                    raw = data.tobytes()
+                except AttributeError:
+                    try:
+                        raw = bytes(data)
+                    except Exception:
+                        raw = None
+                if raw is None:
+                    continue
+
+                try:
+                    # Debug info about buffer type/size to help diagnose CFFI issues
+                    if not (isinstance(raw, (bytes, bytearray))):
+                        print(f"\r\033[K\033[93m[DEBUG] raw type: {type(raw)} len={len(raw) if hasattr(raw,'__len__') else 'n/a'}\033[0m")
+                    if rec.AcceptWaveform(raw):
+                        res = json.loads(rec.Result())
+                        text = res.get("text", "").lower().strip()
+                        if text:
+                            for w in WAKE_WORDS:
+                                if w in text:
+                                    last_wake_text = text
+                                    print(f"\r\033[K\033[96m[WAKE DETECTED]: '{text}'\033[0m")
+                                    wake_event.set()
+                                    # small debounce to avoid rapid retriggers
+                                    time.sleep(0.3)
+                                    break
+                except Exception as e:
+                    print(f"\r\033[K\033[31mVosk accept error: {e}\033[0m")
+                    print(traceback.format_exc())
+    except Exception as e:
+        print(f"\r\033[K\033[31mVosk listener error: {e}\033[0m")
+
 
 def speak(text):
     # Verwijder trigger codes uit de uitgesproken tekst
@@ -116,11 +171,13 @@ def listen_and_transcribe(recognizer, source, is_wake_phase=False):
     sys.stdout.flush()
 
     try:
-        audio = recognizer.listen(source, timeout=None, phrase_time_limit=4)
+        # shorten phrase limit when listening
+        audio = recognizer.listen(source, timeout=None, phrase_time_limit=1)
         with open("temp_audio.wav", "wb") as f:
             f.write(audio.get_wav_data())
         
-        segments, _ = stt_model.transcribe("temp_audio.wav", language="nl", vad_filter=True, beam_size=5)
+        # and when transcribing use beam_size=1
+        segments, _ = stt_model.transcribe("temp_audio.wav", language="nl", vad_filter=True, beam_size=1)
         text = "".join(segment.text for segment in segments).strip().lower()
         
         if text:
@@ -131,71 +188,78 @@ def listen_and_transcribe(recognizer, source, is_wake_phase=False):
     except:
         return ""
 
+
 def main():
     global running
     history = [{"role": "system", "content": SYSTEM_PROMPT}]
     recognizer = sr.Recognizer()
-    recognizer.dynamic_energy_threshold = False
+    recognizer.dynamic_energy_threshold = True
     recognizer.energy_threshold = FIXED_SENSITIVITY
 
     threading.Thread(target=check_for_exit, daemon=True).start()
+    threading.Thread(target=vosk_wake_listener, daemon=True).start()
 
     with sr.Microphone() as source:
         print("\n\033[96mKalibreren...\033[0m")
-        recognizer.adjust_for_ambient_noise(source, duration=1)
+        recognizer.adjust_for_ambient_noise(source, duration=2)
         print(f"Sara Online (Inclusief Bal-volgen). Druk 'q' om te stoppen.\n")
         
         while running:
-            wake_text = listen_and_transcribe(recognizer, source, is_wake_phase=True)
-            found_wake = next((w for w in WAKE_WORDS if w in wake_text), None)
-            
-            if found_wake:
-                print(f"\n\033[95m[WAKKER]\033[0m")
-                initial_query = wake_text.replace(found_wake, "").strip()
-                
-                # We behandelen de eerste zin en eventuele vervolgvragen hetzelfde qua triggers
-                current_query = initial_query if initial_query else None
-                active_chat = True
-                
-                while active_chat and running:
-                    if current_query:
-                        response, history = chat_with_ollama(current_query, history)
-                        
-                        # Check op ball-trigger
-                        if "?!ball" in response:
-                            speak(response) # Sara zegt eerst haar zin, bijv: "Tuurlijk, ik volg de rode bal!"
-                            trigger_ball_script() # Hierna verschijnt de rode tekst in de terminal
-                            speak("Ik heb de bal even gevolgd. Wat wil je nu weten?")
-                        else:
-                            speak(response)
+            # Wait until Vosk signals a wake-word
+            wake_event.wait()
+            wake_event.clear()
 
-                        if EXIT_TRIGGER in response:
-                            active_chat = False
-                            break
+            print(f"\n\033[95m[WAKKER]\033[0m")
+
+            # Capture the user's full query immediately after wake
+            initial_query = None
+            msg = listen_and_transcribe(recognizer, source, is_wake_phase=False)
+            if msg:
+                initial_query = msg
+
+            # We behandelen de eerste zin en eventuele vervolgvragen hetzelfde qua triggers
+            current_query = initial_query if initial_query else None
+            active_chat = True
+            
+            while active_chat and running:
+                if current_query:
+                    response, history = chat_with_ollama(current_query, history)
                     
-                    # Luister naar de volgende zin als we nog in de chat zitten
-                    if active_chat:
-                        msg = listen_and_transcribe(recognizer, source, is_wake_phase=False)
-                        if msg:
-                            sys.stdout.write(f"\r\033[K\033[93mBezoeker: {msg}\033[0m\n")
-                            
-                            is_exit = False
-                            for ew in USER_EXIT_WORDS:
-                                if re.search(r'\b' + re.escape(ew) + r'\b', msg):
-                                    is_exit = True
-                                    break
-                            
-                            if is_exit:
-                                speak("Tot ziens!")
-                                active_chat = False
-                            else:
-                                current_query = msg
-                        else:
-                            active_chat = False
+                    # Check op ball-trigger
+                    if "?!ball" in response:
+                        speak(response) # Sara zegt eerst haar zin, bijv: "Tuurlijk, ik volg de rode bal!"
+                        trigger_ball_script() # Hierna verschijnt de rode tekst in de terminal
+                        speak("Ik heb de bal even gevolgd. Wat wil je nu weten?")
+                    else:
+                        speak(response)
+
+                    if EXIT_TRIGGER in response:
+                        active_chat = False
+                        break
                 
-                print("\n\033[95m[STAND-BY]\033[0m")
-                history = [{"role": "system", "content": SYSTEM_PROMPT}]
-                current_query = None
+                # Luister naar de volgende zin als we nog in de chat zitten
+                if active_chat:
+                    msg = listen_and_transcribe(recognizer, source, is_wake_phase=False)
+                    if msg:
+                        sys.stdout.write(f"\r\033[K\033[93mBezoeker: {msg}\033[0m\n")
+                        
+                        is_exit = False
+                        for ew in USER_EXIT_WORDS:
+                            if re.search(r'\b' + re.escape(ew) + r'\b', msg):
+                                is_exit = True
+                                break
+                        
+                        if is_exit:
+                            speak("Tot ziens!")
+                            active_chat = False
+                        else:
+                            current_query = msg
+                    else:
+                        active_chat = False
+            
+            print("\n\033[95m[STAND-BY]\033[0m")
+            history = [{"role": "system", "content": SYSTEM_PROMPT}]
+            current_query = None
 
 if __name__ == "__main__":
     main()
