@@ -1,6 +1,18 @@
 import time
 import pygame
+import threading
 from Common.sara_library import SaraRobot, ColorLed
+
+# Try to import camera libraries, make them optional
+CAMERA_AVAILABLE = False
+try:
+    from openni import openni2
+    import numpy as np
+    import cv2
+    CAMERA_AVAILABLE = True
+except (ImportError, TypeError) as e:
+    print(f"Camera libraries not available: {e}")
+    print("Running without camera support.")
 
 
 DEADZONE = 0.15
@@ -53,6 +65,79 @@ def calibrate_controller(joystick, samples=10):
     return offsets
 
 
+class CameraThread(threading.Thread):
+    """Thread to handle camera streaming"""
+    def __init__(self):
+        super().__init__()
+        self.running = False
+        self.daemon = True
+        
+    def run(self):
+        if not CAMERA_AVAILABLE:
+            print("Camera not available, skipping camera thread.")
+            return
+            
+        try:
+            # Initialize OpenNI2
+            openni2.initialize("/home/thom/saraJvB-main/OpenCV/CameraUbuntu/AstraSDK-v2.1.3/lib/Plugins/openni2/")
+            
+            # Open the device (ASTRA camera)
+            dev = openni2.Device.open_any()
+            
+            # Create streams
+            depth_stream = dev.create_depth_stream()
+            color_stream = dev.create_color_stream()
+            
+            if depth_stream is None:
+                print("Depth stream not available.")
+                return
+            
+            print("Camera streams initialized.")
+            depth_stream.start()
+            color_stream.start()
+            
+            self.running = True
+            
+            try:
+                while self.running:
+                    # Read depth frame
+                    depth_frame = depth_stream.read_frame()
+                    if depth_frame is not None:
+                        depth_data = depth_frame.get_buffer_as_uint16()
+                        depth_array = np.ctypeslib.as_array(depth_data)
+                        depth_image = depth_array.reshape((depth_frame.height, depth_frame.width))
+                        depth_image_8bit = cv2.flip(255 - cv2.convertScaleAbs(depth_image, alpha=0.03), 1)
+                        depth_colored = cv2.applyColorMap(depth_image_8bit, cv2.COLORMAP_JET)
+                        cv2.imshow("Depth", depth_colored)
+                    
+                    # Read color frame
+                    color_frame = color_stream.read_frame()
+                    if color_frame is not None:
+                        color_data = color_frame.get_buffer_as_uint8()
+                        color_array = np.ctypeslib.as_array(color_data)
+                        color_image = cv2.cvtColor(
+                            color_array.reshape((color_frame.height, color_frame.width, 3)),
+                            cv2.COLOR_RGB2BGR
+                        )
+                        color_image = cv2.flip(color_image, 1)
+                        cv2.imshow("Color", color_image)
+                    
+                    # Check for 'q' key to stop camera
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        self.running = False
+                        
+            finally:
+                depth_stream.stop()
+                color_stream.stop()
+                openni2.unload()
+                cv2.destroyAllWindows()
+        except Exception as e:
+            print(f"Camera error: {e}")
+            
+    def stop(self):
+        self.running = False
+
+
 def main():
     pygame.init()
     pygame.joystick.init()
@@ -70,6 +155,15 @@ def main():
     robot = SaraRobot(logging=False)
     time.sleep(1.0)
 
+    # Start camera thread if available
+    camera_thread = None
+    if CAMERA_AVAILABLE:
+        camera_thread = CameraThread()
+        camera_thread.start()
+        print("Camera thread started. Press 'q' in camera window to stop camera.")
+    else:
+        print("Running without camera.")
+
     lamp_on = False
     police_mode = False
     police_state = False
@@ -78,7 +172,7 @@ def main():
 
     forward_speed = 200        # Speed for forward/backward movement
     sideways_speed = 60        # Speed for strafing (separate, lower)
-    rotation_speed = -70        # Speed for rotation
+    rotation_speed = -70       # Speed for rotation
     refresh_rate = 0.05
 
     button_last = {}
@@ -186,6 +280,12 @@ def main():
             time.sleep(refresh_rate)
 
     finally:
+        # Stop camera thread if it exists
+        if camera_thread is not None:
+            camera_thread.stop()
+            camera_thread.join(timeout=2.0)
+        
+        # Stop robot
         robot.base.move_stop()
         robot.head.lamp.set_lamp(False)
 
