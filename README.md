@@ -40,7 +40,23 @@ Or download directly from: https://git-scm.com/install/windows
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-tk git
+sudo apt install -y python3 python3-tk git build-essential
+sudo apt install -y \
+  libssl-dev \
+  zlib1g-dev \
+  libbz2-dev \
+  libreadline-dev \
+  libsqlite3-dev \
+  curl \
+  git \
+  libncursesw5-dev \
+  xz-utils \
+  tk-dev \
+  libxml2-dev \
+  libxmlsec1-dev \
+  libffi-dev \
+  liblzma-dev
+
 
 git clone https://github.com/tommmie20000/saraJvB-main.git
 cd saraJvB-main
