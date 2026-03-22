@@ -288,3 +288,5 @@ ssh sarajvb@<ip-address>
 ---
 
 *This documentation is primarily in English with some Dutch references maintained for compatibility with existing scripts.*
+
+Documentatie en test-scripts door Thom, Tygo en Yonah uit Havo 5, 2025-2026.
